@@ -7,7 +7,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-        <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4236/4236825.png">
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/4236/4236825.png">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -83,7 +83,7 @@
 
 <div id="loader">
     <div class="spin"></div>
-    <p style="margin-top: 15px; font-size: 12px; letter-spacing: 2px; color: var(--text-dim);">SYNCING LIVE DATA...</p>
+    <p style="margin-top: 15px; font-size: 12px; letter-spacing: 2px; color: var(--text-dim);">SYNCING LIVE DATA (ROOT)...</p>
 </div>
 
 <aside class="sidebar">
@@ -110,7 +110,7 @@
     <div class="header">
         <div>
             <h2 id="viewTitle">Main Console</h2>
-            <p style="color: var(--text-dim); margin-top: 5px;">Enterprise Real-time Database Management</p>
+            <p style="color: var(--text-dim); margin-top: 5px;">Enterprise Database: Orders & Multi-Orders</p>
         </div>
         <button onclick="exportData()" style="padding: 12px 25px; background: var(--primary); border: none; border-radius: 15px; font-weight: 700; cursor: pointer; color: #000;">
             <i class="fa-solid fa-file-excel" style="margin-right: 8px;"></i> EXPORT MASTER LOG
@@ -120,12 +120,12 @@
     <div id="view-orders" class="view active">
         <div class="kpi-grid">
             <div class="kpi-card">
-                <span class="kpi-label">Revenue</span>
+                <span class="kpi-label">Total Revenue</span>
                 <span class="kpi-val" id="revVal">₹0</span>
                 <i class="fa-solid fa-indian-rupee-sign"></i>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">Transactions</span>
+                <span class="kpi-label">All Transactions</span>
                 <span class="kpi-val" id="orderVal">0</span>
                 <i class="fa-solid fa-bag-shopping"></i>
             </div>
@@ -135,7 +135,7 @@
                 <i class="fa-solid fa-circle-check"></i>
             </div>
             <div class="kpi-card">
-                <span class="kpi-label">Convenience Profit</span>
+                <span class="kpi-label">Net Profit (10%)</span>
                 <span class="kpi-val" id="profitVal">₹0</span>
                 <i class="fa-solid fa-sack-dollar"></i>
             </div>
@@ -143,23 +143,22 @@
 
         <div class="table-container">
             <div class="table-header">
-                <h3 style="font-size: 16px;">Active Submissions</h3>
+                <h3 style="font-size: 16px;">Consolidated Submissions</h3>
                 <div class="search-bar">
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="search" placeholder="Search Client, ID, Product or Date..." onkeyup="filter()">
+                    <input type="text" id="search" placeholder="Search across all orders..." onkeyup="filter()">
                 </div>
             </div>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
                         <tr>
-                            <th>SL No</th>
-                            <th>Purchase Date</th>
+                            <th>Type</th>
+                            <th>Date</th>
                             <th>Ref ID</th>
                             <th>Name</th>
                             <th>Whatsapp No</th>
-                            <th>Email Address</th> 
-                            <th>Product Info</th>
+                            <th>Product</th>
                             <th>Gross Amount</th>
                             <th>Status</th>
                             <th>Actions</th>
@@ -174,25 +173,13 @@
     <div id="view-analytics" class="view" style="display: none;">
         <div class="analytics-row">
             <div class="chart-card">
-                <h3 style="margin-bottom: 25px; font-family: 'Space Grotesk';">Financial Growth Curve</h3>
+                <h3 style="margin-bottom: 25px; font-family: 'Space Grotesk';">Financial Growth</h3>
                 <div style="height: 350px;"><canvas id="mainRevChart"></canvas></div>
             </div>
             <div class="chart-card">
-                <h3 style="margin-bottom: 25px; font-family: 'Space Grotesk';">Inventory Demand</h3>
+                <h3 style="margin-bottom: 25px; font-family: 'Space Grotesk';">Product Distribution</h3>
                 <div style="height: 350px;"><canvas id="productDemandChart"></canvas></div>
             </div>
-        </div>
-        <div class="kpi-grid">
-             <div class="kpi-card" style="grid-column: span 2;">
-                 <span class="kpi-label">Top Performing Item</span>
-                 <span class="kpi-val" id="bestProduct" style="color: var(--secondary)">---</span>
-                 <i class="fa-solid fa-crown"></i>
-             </div>
-             <div class="kpi-card" style="grid-column: span 2;">
-                 <span class="kpi-label">Avg Transaction Value</span>
-                 <span class="kpi-val" id="atvVal">₹0</span>
-                 <i class="fa-solid fa-calculator"></i>
-             </div>
         </div>
     </div>
 </main>
@@ -211,17 +198,39 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
-    const ordersRef = ref(db, 'orders');
+    
+    // Yekhane Root point korchi jeno shob folder access pay
+    const rootRef = ref(db, '/');
 
     let allOrders = [];
     let c1, c2;
 
-    onValue(ordersRef, (snapshot) => {
+    onValue(rootRef, (snapshot) => {
         if(snapshot.exists()) {
-            allOrders = Object.entries(snapshot.val()).map(([key, val]) => ({ key, ...val }));
+            const data = snapshot.val();
+            
+            // 1. regular orders processing
+            const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
+                key, 
+                source: 'orders', 
+                ...val 
+            })) : [];
+            
+            // 2. multi orders processing
+            const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => ({ 
+                key, 
+                source: 'multi_orders', 
+                ...val 
+            })) : [];
+            
+            // Combine and Sort by timestamp
+            allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
+                return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+            });
+
             refreshUI();
         } else {
-            document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">No records found.</td></tr>';
+            document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">Database Empty.</td></tr>';
         }
         document.getElementById('loader').style.display = 'none';
     });
@@ -232,57 +241,45 @@
         
         let totalRev = 0;
         let verifiedAmount = 0;
-        let verifiedCount = 0;
         let productMix = {};
 
-        const sortedOrders = allOrders.slice().reverse();
-
-        sortedOrders.forEach((ord, index) => {
+        allOrders.forEach((ord) => {
             const isVerified = ord.active === true;
             const price = parseFloat(ord.amount) || 0;
             const pName = ord.product || 'Other';
-            const email = ord.email || 'No Email';
-            const whatsapp = ord.phone || 'N/A';
-            const customerName = ord.customer || 'Anonymous';
-            
-            // Format: 12 Feb, 2026 02:53 pm
+            const sourceLabel = ord.source === 'multi_orders' ? 'MULTI' : 'SINGLE';
+            const sourceColor = ord.source === 'multi_orders' ? 'var(--secondary)' : 'var(--text-dim)';
+
+            // Date Formatting
             const rawDate = ord.timestamp || ord.date || '';
             let formattedDate = '---';
             if(rawDate) {
                 const d = new Date(rawDate);
-                if(!isNaN(d.getTime())) {
-                    const dPart = d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-                    const tPart = d.toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-                    formattedDate = `${dPart} ${tPart}`;
-                } else { formattedDate = rawDate; }
+                formattedDate = !isNaN(d.getTime()) ? d.toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : rawDate;
             }
 
             if(isVerified) {
                 verifiedAmount += price;
-                verifiedCount++;
                 productMix[pName] = (productMix[pName] || 0) + 1;
             }
             totalRev += price;
 
-            const rowStyle = isVerified ? 'background: rgba(16, 185, 129, 0.05);' : 'background: rgba(239, 68, 68, 0.05);';
-
             body.innerHTML += `
-                <tr style="${rowStyle}" onclick="quickEdit('${ord.key}', ${price})">
-                    <td style="color: var(--text-dim); font-weight: 600;">${index + 1}</td>
+                <tr onclick="quickEdit('${ord.key}', ${price}, '${ord.source}')">
+                    <td style="font-size: 10px; font-weight: 800; color: ${sourceColor}">${sourceLabel}</td>
                     <td style="white-space: nowrap; color: var(--text-dim); font-size: 11px;">${formattedDate}</td>
-                    <td style="font-weight: 700; color: var(--secondary)">#${ord.order_id || 'N/A'}</td>
-                    <td><div style="font-weight: 700">${customerName}</div></td>
-                    <td><div style="font-size: 13px; color: var(--text-dim)">${whatsapp}</div></td>
-                    <td style="font-size: 13px; color: var(--text-dim);">${email}</td>
-                    <td><span style="background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 8px; font-size: 11px">${pName}</span></td>
-                    <td style="font-weight: 800; font-size: 15px">₹${price.toLocaleString('en-IN')}</td>
+                    <td style="font-weight: 700; color: var(--primary)">#${ord.order_id || 'N/A'}</td>
+                    <td><div style="font-weight: 700">${ord.customer || 'Anonymous'}</div></td>
+                    <td style="color: var(--text-dim)">${ord.phone || 'N/A'}</td>
+                    <td><span style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; font-size: 11px">${pName}</span></td>
+                    <td style="font-weight: 800; font-size: 14px">₹${price.toLocaleString('en-IN')}</td>
                     <td>
-                        <div class="status-badge ${isVerified?'verified':'pending'}" onclick="event.stopPropagation(); toggle('${ord.key}', ${isVerified})">
+                        <div class="status-badge ${isVerified?'verified':'pending'}" onclick="event.stopPropagation(); toggle('${ord.key}', ${isVerified}, '${ord.source}')">
                             <i class="fa-solid ${isVerified?'fa-circle-check':'fa-circle-exclamation'}"></i> ${isVerified?'VERIFIED':'PENDING'}
                         </div>
                     </td>
                     <td>
-                        <div class="btn-icon" onclick="event.stopPropagation(); dropOrder('${ord.key}')">
+                        <div class="btn-icon" onclick="event.stopPropagation(); dropOrder('${ord.key}', '${ord.source}')">
                             <i class="fa-solid fa-trash"></i>
                         </div>
                     </td>
@@ -290,29 +287,36 @@
             `;
         });
 
+        // Update KPIs
         document.getElementById('revVal').innerText = `₹${totalRev.toLocaleString('en-IN')}`;
         document.getElementById('orderVal').innerText = allOrders.length;
         document.getElementById('convVal').innerText = `₹${verifiedAmount.toLocaleString('en-IN')}`;
         document.getElementById('profitVal').innerText = `₹${Math.round(verifiedAmount * 0.10).toLocaleString('en-IN')}`;
-        document.getElementById('atvVal').innerText = `₹${Math.round(verifiedAmount/verifiedCount || 0).toLocaleString('en-IN')}`;
-
-        const topP = Object.keys(productMix).length > 0 ? Object.keys(productMix).reduce((a, b) => productMix[a] > productMix[b] ? a : b) : '---';
-        document.getElementById('bestProduct').innerText = topP;
 
         renderAnalytics(verifiedAmount, productMix);
     }
 
-    window.toggle = (id, s) => update(ref(db, `orders/${id}`), { active: !s });
-    window.quickEdit = (id, old) => {
-        const val = prompt("Update Transaction Amount:", old);
-        if(val !== null && !isNaN(val)) update(ref(db, `orders/${id}`), { amount: parseFloat(val) });
+    // Toggle Status based on Source folder
+    window.toggle = (id, s, source) => {
+        const path = `${source}/${id}`;
+        update(ref(db, path), { active: !s });
     };
-    window.dropOrder = (id) => {
-        if(confirm("DANGER: Permanent delete?")) {
-            if(prompt("Admin Security PIN:") === "Manas@4321") remove(ref(db, `orders/${id}`));
-            else alert("Incorrect PIN");
+
+    window.quickEdit = (id, old, source) => {
+        const val = prompt("Update Transaction Amount:", old);
+        if(val !== null && !isNaN(val)) {
+            update(ref(db, `${source}/${id}`), { amount: parseFloat(val) });
         }
     };
+
+    window.dropOrder = (id, source) => {
+        if(confirm("DANGER: Permanent delete?")) {
+            if(prompt("Admin Security PIN:") === "Manas@4321") {
+                remove(ref(db, `${source}/${id}`));
+            } else alert("Incorrect PIN");
+        }
+    };
+
     window.filter = () => {
         const q = document.getElementById('search').value.toLowerCase();
         document.querySelectorAll('#liveBody tr').forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none');
@@ -324,14 +328,13 @@
         document.getElementById(`view-${tab}`).style.display = 'block';
         el.classList.add('active');
         document.getElementById('viewTitle').innerText = el.innerText.trim();
-        if(tab === 'analytics' && c1 && c2) { c1.resize(); c2.resize(); }
     };
 
     window.exportData = () => {
         const ws = XLSX.utils.json_to_sheet(allOrders);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Master_Records");
-        XLSX.writeFile(wb, "SLI_Enterprise_Log.xlsx");
+        XLSX.writeFile(wb, "SLI_Master_Enterprise_Log.xlsx");
     };
 
     function renderAnalytics(total, products) {
@@ -343,10 +346,10 @@
             c1 = new Chart(ctx1, {
                 type: 'line',
                 data: {
-                    labels: ['Q1', 'Q2', 'Q3', 'Active'],
+                    labels: ['Start', 'Mid', 'Recent', 'Live'],
                     datasets: [{ 
-                        label: 'Verified Revenue', 
-                        data: [total*0.3, total*0.6, total*0.8, total], 
+                        label: 'Revenue', 
+                        data: [total*0.2, total*0.5, total*0.8, total], 
                         borderColor: '#f59e0b', tension: 0.4, fill: true, 
                         backgroundColor: 'rgba(245, 158, 11, 0.05)' 
                     }]
@@ -356,21 +359,19 @@
         }
         if(ctx2) {
             c2 = new Chart(ctx2, {
-                type: 'bar',
+                type: 'doughnut',
                 data: {
                     labels: Object.keys(products),
                     datasets: [{ 
                         data: Object.values(products), 
-                        backgroundColor: '#38bdf8', borderRadius: 8 
+                        backgroundColor: ['#38bdf8', '#f59e0b', '#10b981', '#ef4444'],
+                        borderWidth: 0
                     }]
                 },
-                options: { maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } } }
+                options: { maintainAspectRatio: false, cutout: '70%' }
             });
         }
     }
 </script>
 </body>
-
 </html>
-
-
