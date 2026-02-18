@@ -206,31 +206,48 @@
     let c1, c2;
 
 onValue(rootRef, (snapshot) => {
-    if(snapshot.exists()) {
-        const data = snapshot.val();
-        
-        const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
-            key, 
-            source: 'orders', 
-            // Jodi 'product' key na thake, tobe 'Other' dekhabe
-            product: val.product || val.item_name || val.itemName || 'Other',
-            ...val 
-        })) : [];
-        
-        const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => ({ 
-            key, 
-            source: 'multi_orders', 
-            // Multi-orders-er khetre jodi list thake, tobe list-er shob product join korbe
-            product: val.product || (val.items ? val.items.map(i => i.name).join(', ') : 'Other'),
-            ...val 
-        })) : [];
-        
-        allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
-            return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
-        });
+        if(snapshot.exists()) {
+            const data = snapshot.val();
+            
+            // 1. Regular Orders Processing
+            const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
+                key, 
+                source: 'orders', 
+                product: val.product || 'N/A', // Simple order-e direct product name
+                ...val 
+            })) : [];
+            
+            // 2. Multi Orders Processing (Logic Change eikhane)
+            const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => {
+                let pName = 'Other';
+                
+                // Jodi val.product thake tobe shetai nebe
+                if (val.product) {
+                    pName = val.product;
+                } 
+                // Jodi val.items thake (array), tobe shob product-er name join korbe
+                else if (val.items && Array.isArray(val.items)) {
+                    pName = val.items.map(item => item.product || item.name || 'Item').join(', ');
+                }
+                // Jodi multi_orders-er bhetore onno kono key thake jemon 'itemName'
+                else if (val.itemName) {
+                    pName = val.itemName;
+                }
 
-        refreshUI();
-    }
+                return {
+                    key,
+                    source: 'multi_orders',
+                    product: pName,
+                    ...val
+                };
+            }) : [];
+            
+            // Combine and Sort
+            allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
+                return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+            });
+
+            refreshUI();
         } else {
             document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">Database Empty.</td></tr>';
         }
@@ -377,4 +394,5 @@ onValue(rootRef, (snapshot) => {
 </script>
 </body>
 </html>
+
 
