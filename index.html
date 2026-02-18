@@ -205,30 +205,32 @@
     let allOrders = [];
     let c1, c2;
 
-    onValue(rootRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const data = snapshot.val();
-            
-            // 1. regular orders processing
-            const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
-                key, 
-                source: 'orders', 
-                ...val 
-            })) : [];
-            
-            // 2. multi orders processing
-            const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => ({ 
-                key, 
-                source: 'multi_orders', 
-                ...val 
-            })) : [];
-            
-            // Combine and Sort by timestamp
-            allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
-                return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
-            });
+onValue(rootRef, (snapshot) => {
+    if(snapshot.exists()) {
+        const data = snapshot.val();
+        
+        const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
+            key, 
+            source: 'orders', 
+            // Jodi 'product' key na thake, tobe 'Other' dekhabe
+            product: val.product || val.item_name || val.itemName || 'Other',
+            ...val 
+        })) : [];
+        
+        const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => ({ 
+            key, 
+            source: 'multi_orders', 
+            // Multi-orders-er khetre jodi list thake, tobe list-er shob product join korbe
+            product: val.product || (val.items ? val.items.map(i => i.name).join(', ') : 'Other'),
+            ...val 
+        })) : [];
+        
+        allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
+            return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+        });
 
-            refreshUI();
+        refreshUI();
+    }
         } else {
             document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">Database Empty.</td></tr>';
         }
@@ -375,3 +377,4 @@
 </script>
 </body>
 </html>
+
