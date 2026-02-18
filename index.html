@@ -209,27 +209,27 @@ onValue(rootRef, (snapshot) => {
         if(snapshot.exists()) {
             const data = snapshot.val();
             
-            // 1. Regular Orders Processing
+            // 1. Regular Orders
             const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
                 key, 
                 source: 'orders', 
-                product: val.product || 'N/A', // Simple order-e direct product name
+                product: val.product || 'N/A', 
                 ...val 
             })) : [];
             
-            // 2. Multi Orders Processing (Logic Change eikhane)
+            // 2. Multi Orders (Fixing pName logic)
             const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => {
                 let pName = 'Other';
                 
-                // Jodi val.product thake tobe shetai nebe
-                if (val.product) {
+                // Check if 'product' string exists
+                if (val.product && typeof val.product === 'string') {
                     pName = val.product;
                 } 
-                // Jodi val.items thake (array), tobe shob product-er name join korbe
+                // Check if it's in an 'items' array (Common for multi-orders)
                 else if (val.items && Array.isArray(val.items)) {
                     pName = val.items.map(item => item.product || item.name || 'Item').join(', ');
                 }
-                // Jodi multi_orders-er bhetore onno kono key thake jemon 'itemName'
+                // Check for other common keys like 'itemName' or 'details'
                 else if (val.itemName) {
                     pName = val.itemName;
                 }
@@ -237,19 +237,21 @@ onValue(rootRef, (snapshot) => {
                 return {
                     key,
                     source: 'multi_orders',
-                    product: pName,
+                    product: pName, // Eikhane pName assign hocche
                     ...val
                 };
             }) : [];
             
-            // Combine and Sort
+            // Shob eksathe combine kora
             allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
-                return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+                const dateA = new Date(a.timestamp || a.date || 0);
+                const dateB = new Date(b.timestamp || b.date || 0);
+                return dateB - dateA;
             });
 
             refreshUI();
         } else {
-            document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">Database Empty.</td></tr>';
+            document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">No records found.</td></tr>';
         }
         document.getElementById('loader').style.display = 'none';
     });
@@ -394,5 +396,6 @@ onValue(rootRef, (snapshot) => {
 </script>
 </body>
 </html>
+
 
 
