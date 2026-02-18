@@ -209,7 +209,7 @@ onValue(rootRef, (snapshot) => {
         if(snapshot.exists()) {
             const data = snapshot.val();
             
-            // 1. Regular Orders
+            // 1. Regular Orders Processing
             const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
                 key, 
                 source: 'orders', 
@@ -217,19 +217,19 @@ onValue(rootRef, (snapshot) => {
                 ...val 
             })) : [];
             
-            // 2. Multi Orders (Fixing pName logic)
+            // 2. Multi Orders Processing (Product Name Fix)
             const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => {
                 let pName = 'Other';
                 
-                // Check if 'product' string exists
-                if (val.product && typeof val.product === 'string') {
+                // Jodi 'product' key direct thake
+                if (val.product) {
                     pName = val.product;
                 } 
-                // Check if it's in an 'items' array (Common for multi-orders)
+                // Jodi 'items' array thake (Common for multi-cart)
                 else if (val.items && Array.isArray(val.items)) {
-                    pName = val.items.map(item => item.product || item.name || 'Item').join(', ');
+                    pName = val.items.map(item => item.product || item.name || item.itemName).join(', ');
                 }
-                // Check for other common keys like 'itemName' or 'details'
+                // Jodi shudhu 'itemName' thake
                 else if (val.itemName) {
                     pName = val.itemName;
                 }
@@ -237,21 +237,18 @@ onValue(rootRef, (snapshot) => {
                 return {
                     key,
                     source: 'multi_orders',
-                    product: pName, // Eikhane pName assign hocche
+                    product: pName, // Eikhane 'Other' replace hoye real name jabe
                     ...val
                 };
             }) : [];
             
-            // Shob eksathe combine kora
             allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
-                const dateA = new Date(a.timestamp || a.date || 0);
-                const dateB = new Date(b.timestamp || b.date || 0);
-                return dateB - dateA;
+                return (new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
             });
 
             refreshUI();
         } else {
-            document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">No records found.</td></tr>';
+            document.getElementById('liveBody').innerHTML = '<tr><td colspan="10" style="text-align:center">Database Empty.</td></tr>';
         }
         document.getElementById('loader').style.display = 'none';
     });
@@ -396,6 +393,7 @@ onValue(rootRef, (snapshot) => {
 </script>
 </body>
 </html>
+
 
 
 
