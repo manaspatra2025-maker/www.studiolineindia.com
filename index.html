@@ -157,6 +157,7 @@
                             <th>Date</th>
                             <th>Ref ID</th>
                             <th>Name</th>
+                            <th>Email ID</th>   
                             <th>Whatsapp No</th>
                             <th>Product</th>
                             <th>Gross Amount</th>
@@ -170,18 +171,33 @@
         </div>
     </div>
 
-    <div id="view-analytics" class="view" style="display: none;">
-        <div class="analytics-row">
-            <div class="chart-card">
-                <h3 style="margin-bottom: 25px; font-family: 'Space Grotesk';">Financial Growth</h3>
-                <div style="height: 350px;"><canvas id="mainRevChart"></canvas></div>
+<div id="view-analytics" class="view" style="display:none;">
+    <div class="analytics-row" style="grid-template-columns:1fr;">
+
+        <div class="chart-card" style="padding:35px;">
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <div>
+                    <h3 style="font-family:'Space Grotesk'; font-size:20px; margin:0;">
+                        Financial Growth
+                    </h3>
+                    <p style="font-size:12px; color:var(--text-dim); margin-top:4px;">
+                        Revenue performance overview
+                    </p>
+                </div>
+
+                <i class="fa-solid fa-chart-line" style="font-size:22px; color:var(--primary);"></i>
             </div>
-            <div class="chart-card">
-                <h3 style="margin-bottom: 25px; font-family: 'Space Grotesk';">Product Distribution</h3>
-                <div style="height: 350px;"><canvas id="productDemandChart"></canvas></div>
+
+            <div style="height:360px;">
+                <canvas id="mainRevChart"></canvas>
             </div>
+
         </div>
+
     </div>
+</div>
+
 </main>
 
 <script type="module">
@@ -246,7 +262,21 @@
         allOrders.forEach((ord) => {
             const isVerified = ord.active === true;
             const price = parseFloat(ord.amount) || 0;
-            const pName = ord.product || 'Other';
+let pName = "Other";
+
+if (ord.product && ord.product.trim() !== "") {
+  // SINGLE order
+  pName = ord.product;
+}
+else if (ord.products && typeof ord.products === "string") {
+  // MULTI order (comma separated string)
+  const list = ord.products.split(",");
+
+  pName = list
+    .map((p, i) => `${String(i + 1).padStart(2, "0")} _ ${p.trim()}`)
+    .join("<br>");
+}
+
             const sourceLabel = ord.source === 'multi_orders' ? 'MULTI' : 'SINGLE';
             const sourceColor = ord.source === 'multi_orders' ? 'var(--secondary)' : 'var(--text-dim)';
 
@@ -270,8 +300,14 @@
                     <td style="white-space: nowrap; color: var(--text-dim); font-size: 11px;">${formattedDate}</td>
                     <td style="font-weight: 700; color: var(--primary)">#${ord.order_id || 'N/A'}</td>
                     <td><div style="font-weight: 700">${ord.customer || 'Anonymous'}</div></td>
+    <!-- ✅ EMAIL COLUMN -->
+    <td style="color: var(--text-dim)">${ord.email || 'N/A'}</td>
                     <td style="color: var(--text-dim)">${ord.phone || 'N/A'}</td>
-                    <td><span style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; font-size: 11px">${pName}</span></td>
+<td>
+  <div style="font-size:11px; line-height:1.5">
+    ${pName}
+  </div>
+</td>
                     <td style="font-weight: 800; font-size: 14px">₹${price.toLocaleString('en-IN')}</td>
                     <td>
                         <div class="status-badge ${isVerified?'verified':'pending'}" onclick="event.stopPropagation(); toggle('${ord.key}', ${isVerified}, '${ord.source}')">
