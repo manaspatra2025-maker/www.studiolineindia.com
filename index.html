@@ -85,16 +85,16 @@
     </div>
 
     <div class="kpi-grid">
-        <div class="kpi-card"><span class="kpi-label">Revenue</span><span class="kpi-val" id="revVal">₹0</span></div>
-        <div class="kpi-card"><span class="kpi-label">Transactions</span><span class="kpi-val" id="orderVal">0</span></div>
-        <div class="kpi-card"><span class="kpi-label">Verified</span><span class="kpi-val" id="convVal">₹0</span></div>
-        <div class="kpi-card"><span class="kpi-label">Profit (10%)</span><span class="kpi-val" id="profitVal">₹0</span></div>
+        <div class="kpi-card"><span class="kpi-label">Total Revenue</span><span class="kpi-val" id="revVal">₹0</span></div>
+        <div class="kpi-card"><span class="kpi-label">All Transactions</span><span class="kpi-val" id="orderVal">0</span></div>
+        <div class="kpi-card"><span class="kpi-label">Verified Amount</span><span class="kpi-val" id="convVal">₹0</span></div>
+        <div class="kpi-card"><span class="kpi-label">Net Profit (10%)</span><span class="kpi-val" id="profitVal">₹0</span></div>
     </div>
 
     <div class="table-container">
         <div class="table-header">
             <h3>Consolidated Submissions</h3>
-            <div class="search-bar"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="search" placeholder="Search..." onkeyup="filter()"></div>
+            <div class="search-bar"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="search" placeholder="Search across all orders..." onkeyup="filter()"></div>
         </div>
         <div style="overflow-x: auto;">
             <table>
@@ -104,9 +104,9 @@
                         <th>Date</th>
                         <th>Ref ID</th>
                         <th>Name</th>
-                        <th>Whatsapp</th>
+                        <th>Whatsapp No</th>
                         <th>Product</th>
-                        <th>Amount</th>
+                        <th>Gross Amount</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -139,33 +139,50 @@
         if(snapshot.exists()) {
             const data = snapshot.val();
             
-            // Single Orders
+            // Single Orders processing
             const ordersPart = data.orders ? Object.entries(data.orders).map(([key, val]) => ({ 
-                key, source: 'orders', product: val.product || 'N/A', ...val 
+                key, 
+                source: 'orders', 
+                product: val.product || 'N/A', 
+                ...val 
             })) : [];
             
-            // Multi Orders - Product Name Logic Fixed Here
+            // Multi Orders processing with Product Name logic
             const multiPart = data.multi_orders ? Object.entries(data.multi_orders).map(([key, val]) => {
-                let displayProduct = 'Other';
+                let pName = 'Other';
                 
-                // 1. Jodi database-e 'items' array thake
+                // MULTI-ORDER LOGIC: 
+                // 1. Check if 'items' array exists (common in multi-cart)
                 if (val.items && Array.isArray(val.items)) {
-                    displayProduct = val.items.map(i => i.product || i.name || i.title).join(', ');
+                    pName = val.items.map(i => i.product || i.name || i.title || 'Item').join(', ');
                 } 
-                // 2. Jodi 'product' key thake
+                // 2. Check if it's a direct 'product' key
                 else if (val.product) {
-                    displayProduct = val.product;
+                    pName = val.product;
                 }
-                // 3. Jodi 'pName' ba 'itemName' thake
+                // 3. Check for alternative keys like 'pName' or 'itemName'
                 else if (val.pName || val.itemName) {
-                    displayProduct = val.pName || val.itemName;
+                    pName = val.pName || val.itemName;
                 }
 
-                return { key, source: 'multi_orders', product: displayProduct, ...val };
+                return { 
+                    key, 
+                    source: 'multi_orders', 
+                    product: pName, 
+                    ...val 
+                };
             }) : [];
             
-            allOrders = [...ordersPart, ...multiPart].sort((a,b) => new Date(b.timestamp || b.date) - new Date(a.timestamp || a.date));
+            // Combine and Sort by Date (Latest First)
+            allOrders = [...ordersPart, ...multiPart].sort((a,b) => {
+                const dateA = new Date(a.timestamp || a.date || 0);
+                const dateB = new Date(b.timestamp || b.date || 0);
+                return dateB - dateA;
+            });
+
             refreshUI();
+        } else {
+            document.getElementById('liveBody').innerHTML = '<tr><td colspan="9" style="text-align:center">No records found.</td></tr>';
         }
         document.getElementById('loader').style.display = 'none';
     });
@@ -183,12 +200,14 @@
 
             body.innerHTML += `
                 <tr>
-                    <td style="font-size:10px; font-weight:800; color:${ord.source==='multi_orders'?'#38bdf8':'#94a3b8'}">${ord.source==='multi_orders'?'MULTI':'SINGLE'}</td>
+                    <td style="font-size:10px; font-weight:800; color:${ord.source==='multi_orders'?'#38bdf8':'#94a3b8'}">
+                        ${ord.source==='multi_orders'?'MULTI':'SINGLE'}
+                    </td>
                     <td>${ord.date || '---'}</td>
                     <td style="color:var(--primary); font-weight:700;">#${ord.order_id || 'N/A'}</td>
                     <td>${ord.customer || 'Anonymous'}</td>
                     <td>${ord.phone || 'N/A'}</td>
-                    <td><span style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:6px;">${ord.product}</span></td>
+                    <td><span style="background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:6px; font-size:11px;">${ord.product}</span></td>
                     <td style="font-weight:800;">₹${price.toLocaleString('en-IN')}</td>
                     <td>
                         <div class="status-badge ${isVerified?'verified':'pending'}" onclick="toggle('${ord.key}', ${isVerified}, '${ord.source}')">
@@ -205,19 +224,44 @@
         document.getElementById('profitVal').innerText = `₹${Math.round(verifiedAmt * 0.1).toLocaleString('en-IN')}`;
     }
 
-    window.toggle = (id, s, source) => update(ref(db, `${source}/${id}`), { active: !s });
-    window.dropOrder = (id, source) => {
-        if(confirm("Delete order?") && prompt("PIN:") === "Manas@4321") remove(ref(db, `${source}/${id}`));
+    window.toggle = (id, s, source) => {
+        update(ref(db, `${source}/${id}`), { active: !s });
     };
+
+    window.dropOrder = (id, source) => {
+        if(confirm("Are you sure you want to delete this order?")) {
+            const pin = prompt("Enter Security PIN:");
+            if(pin === "Manas@4321") {
+                remove(ref(db, `${source}/${id}`));
+            } else {
+                alert("Incorrect PIN!");
+            }
+        }
+    };
+
     window.filter = () => {
         const q = document.getElementById('search').value.toLowerCase();
-        document.querySelectorAll('#liveBody tr').forEach(r => r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none');
+        const rows = document.querySelectorAll('#liveBody tr');
+        rows.forEach(r => {
+            r.style.display = r.innerText.toLowerCase().includes(q) ? '' : 'none';
+        });
     };
+
     window.exportData = () => {
-        const ws = XLSX.utils.json_to_sheet(allOrders);
+        const dataToExport = allOrders.map(o => ({
+            Type: o.source.toUpperCase(),
+            Date: o.date,
+            OrderID: o.order_id,
+            Customer: o.customer,
+            Phone: o.phone,
+            Product: o.product,
+            Amount: o.amount,
+            Status: o.active ? 'Verified' : 'Pending'
+        }));
+        const ws = XLSX.utils.json_to_sheet(dataToExport);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Records");
-        XLSX.writeFile(wb, "SLI_Data.xlsx");
+        XLSX.utils.book_append_sheet(wb, ws, "Orders");
+        XLSX.writeFile(wb, "SLI_Master_Log.xlsx");
     };
 </script>
 </body>
